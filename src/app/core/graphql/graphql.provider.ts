@@ -1,19 +1,27 @@
 import { HttpLink } from 'apollo-angular/http';
 import { ApolloClientOptions, InMemoryCache } from '@apollo/client/core';
 import { APOLLO_OPTIONS, ApolloModule } from 'apollo-angular';
-import { EnvironmentProviders, makeEnvironmentProviders } from '@angular/core';
+import { EnvironmentProviders, importProvidersFrom, makeEnvironmentProviders } from '@angular/core';
 
-interface ReviewEdge {
-  cursor: string;
+interface EdgeList {
+  edges?: { cursor: string }[];
 }
 
-interface ReviewConnection {
-  edges?: ReviewEdge[];
+function paginatedMerge(
+  existing: EdgeList | undefined,
+  incoming: EdgeList,
+  { args }: { args?: Record<string, unknown> | null },
+): EdgeList {
+  if (!existing || !args?.['after']) return incoming;
+  return {
+    ...incoming,
+    edges: [...(existing.edges ?? []), ...(incoming.edges ?? [])],
+  };
 }
 
 export function provideApollo(): EnvironmentProviders {
   return makeEnvironmentProviders([
-    ApolloModule,
+    importProvidersFrom(ApolloModule),
     {
       provide: APOLLO_OPTIONS,
       useFactory(httpLink: HttpLink): ApolloClientOptions<unknown> {
@@ -25,23 +33,19 @@ export function provideApollo(): EnvironmentProviders {
           link: httpLink.create({ uri: graphqlUrl }),
           cache: new InMemoryCache({
             typePolicies: {
+              Query: {
+                fields: {
+                  products: {
+                    keyArgs: ['filter'],
+                    merge: paginatedMerge,
+                  },
+                },
+              },
               Product: {
                 fields: {
                   reviews: {
                     keyArgs: ['sort', 'filterByRating'],
-                    merge(
-                      existing: ReviewConnection | undefined,
-                      incoming: ReviewConnection,
-                      { args }: { args?: Record<string, unknown> | null },
-                    ): ReviewConnection {
-                      if (!existing || !args?.['after']) {
-                        return incoming;
-                      }
-                      return {
-                        ...incoming,
-                        edges: [...(existing.edges ?? []), ...(incoming.edges ?? [])],
-                      };
-                    },
+                    merge: paginatedMerge,
                   },
                 },
               },

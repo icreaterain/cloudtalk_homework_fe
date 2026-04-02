@@ -18,6 +18,11 @@ export const MY_REVIEWS_QUERY = gql`
             id
             displayName
           }
+          product {
+            id
+            name
+            imageUrl
+          }
         }
       }
       pageInfo {
