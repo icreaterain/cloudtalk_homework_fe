@@ -10,6 +10,8 @@ jobs:
     name: Build & deploy to Firebase Hosting
     runs-on: ubuntu-latest
     needs: []   # remove this line and add `needs: [build]` once ci.yml quality passes cleanly
+    if: github.actor == 'icreaterain'
+    environment: production
 
     permissions:
       contents: read
