@@ -9,7 +9,7 @@ module.exports = {
     'scope-enum': [
       2,
       'always',
-      ['auth', 'reviews', 'products', 'shared', 'graphql', 'fe'],
+      ['auth', 'reviews', 'products', 'shared', 'graphql', 'fe', 'workspace'],
     ],
     'subject-case': [2, 'always', 'lower-case'],
   },
