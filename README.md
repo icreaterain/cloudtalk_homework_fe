@@ -95,7 +95,7 @@ cd ../cloudtalk_homework_fe && pnpm run codegen
 | Phase | Scope | Status |
 |---|---|---|
 | 6 | Scaffold (Angular, Apollo Angular, Tailwind, codegen, routing) | **Complete** |
-| 7 | Auth flow (AuthService, interceptors, login/register UI) | Pending |
-| 8 | Product list/detail, review list/form/card | Pending |
-| 9 | CI/CD pipelines | Pending |
-| 10 | Documentation | Pending |
+| 7 | Auth flow (AuthService, interceptors, login/register UI) | **Complete** |
+| 8 | Product list/detail, review list/form/card | **Complete** |
+| 9 | CI/CD pipelines | **Complete** |
+| 10 | Documentation | **Complete** |
