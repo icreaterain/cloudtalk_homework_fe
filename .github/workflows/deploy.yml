@@ -1,0 +1,75 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    name: Build & deploy to Firebase Hosting
+    runs-on: ubuntu-latest
+    needs: []   # remove this line and add `needs: [build]` once ci.yml quality passes cleanly
+
+    permissions:
+      contents: read
+      id-token: write   # required for OIDC → GCP auth
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Codegen requires BE schema — same shallow-clone pattern as ci.yml
+      - name: Fetch BE schema.graphql
+        env:
+          BE_REPO: ${{ github.server_url }}/${{ github.repository_owner }}/cloudtalk_homework_be.git
+        run: |
+          SIBLING_DIR="$(dirname "$GITHUB_WORKSPACE")/cloudtalk_homework_be"
+          git clone --depth=1 "$BE_REPO" "$SIBLING_DIR"
+
+      - name: Generate GraphQL types
+        run: pnpm run codegen
+
+      # Runtime API base URLs. Defaults use Firebase Hosting rewrites → Cloud Run (see firebase.json).
+      # Override with repo variables API_URL / GRAPHQL_URL if needed (e.g. direct Cloud Run URL).
+      - name: Write production env.js
+        env:
+          PROD_API_URL: ${{ vars.API_URL || 'https://cloudtalk-homework.web.app/api' }}
+          PROD_GRAPHQL_URL: ${{ vars.GRAPHQL_URL || 'https://cloudtalk-homework.web.app/graphql' }}
+        run: |
+          cat > public/env.js <<EOF
+          (function (window) {
+            window.__env = {
+              API_URL: '${PROD_API_URL}',
+              GRAPHQL_URL: '${PROD_GRAPHQL_URL}',
+            };
+          })(window);
+          EOF
+
+      # Production build — output goes to dist/cloudtalk_homework_fe/browser
+      - name: Build
+        run: pnpm run build
+        env:
+          NODE_ENV: production
+
+      # ── Authenticate to GCP via Workload Identity Federation (no JSON key) ────────
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT_EMAIL }}
+
+      # ── Deploy to Firebase Hosting ────────────────────────────────────────────────
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Deploy to Firebase Hosting
+        run: firebase deploy --only hosting --project ${{ vars.FIREBASE_PROJECT_ID }}

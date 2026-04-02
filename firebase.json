@@ -1,0 +1,26 @@
+{
+  "hosting": {
+    "public": "dist/cloudtalk_homework_fe/browser",
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "rewrites": [
+      {
+        "source": "/api/**",
+        "run": {
+          "serviceId": "cloudtalk-be",
+          "region": "us-central1"
+        }
+      },
+      {
+        "source": "/graphql",
+        "run": {
+          "serviceId": "cloudtalk-be",
+          "region": "us-central1"
+        }
+      },
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  }
+}

@@ -1,0 +1,97 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ─── Quality Gate ────────────────────────────────────────────────────────────
+  # GraphQL codegen · lint · format · type-check · unit tests (Jest via Angular CLI)
+  quality:
+    name: Codegen, Lint, Type-check, Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Pin is in package.json "packageManager" — do not set version here (action-setup rejects both).
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Recreate the workspace sibling structure that codegen.ts expects:
+      #   ../cloudtalk_homework_be/schema.graphql
+      # BE is the source of truth (ADR 011). Shallow clone — sparse-checkout on a single
+      # file fails in cone mode ("not a directory"); full --depth=1 clone is small enough.
+      - name: Fetch BE repo for schema.graphql
+        env:
+          BE_REPO: ${{ github.server_url }}/${{ github.repository_owner }}/cloudtalk_homework_be.git
+        run: |
+          SIBLING_DIR="$(dirname "$GITHUB_WORKSPACE")/cloudtalk_homework_be"
+          git clone --depth=1 "$BE_REPO" "$SIBLING_DIR"
+
+      # Generate src/generated/graphql.ts from BE's schema.graphql.
+      # Tests and type-check both depend on this output.
+      - name: Generate GraphQL types
+        run: pnpm run codegen
+
+      - name: Lint
+        run: pnpm run lint:check
+
+      - name: Check formatting
+        run: pnpm run format:check
+
+      # Type-check app source (follows import chain from src/main.ts)
+      - name: Type-check app
+        run: pnpm exec tsc --noEmit -p tsconfig.app.json
+
+      # Type-check test files (includes *.spec.ts)
+      - name: Type-check tests
+        run: pnpm exec tsc --noEmit -p tsconfig.spec.json
+
+      # Run jest via the Angular builder so zone.js test env is injected correctly.
+      - name: Unit tests
+        run: pnpm run test:ci
+
+  # ─── Build ───────────────────────────────────────────────────────────────────
+  # Verifies the production bundle compiles; catches template errors not caught by tsc.
+  build:
+    name: Production Build
+    needs: quality
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Fetch BE repo for schema.graphql
+        env:
+          BE_REPO: ${{ github.server_url }}/${{ github.repository_owner }}/cloudtalk_homework_be.git
+        run: |
+          SIBLING_DIR="$(dirname "$GITHUB_WORKSPACE")/cloudtalk_homework_be"
+          git clone --depth=1 "$BE_REPO" "$SIBLING_DIR"
+
+      - name: Generate GraphQL types
+        run: pnpm run codegen
+
+      - name: Build
+        run: pnpm run build
