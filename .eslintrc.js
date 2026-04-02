@@ -23,6 +23,14 @@ module.exports = {
     'prettier/prettier': 'error',
     'no-console': ['warn', { allow: ['warn', 'error'] }],
   },
+  overrides: [
+    {
+      files: ['**/*.spec.ts', 'setup-jest.ts'],
+      parserOptions: {
+        project: './tsconfig.spec.json',
+      },
+    },
+  ],
   ignorePatterns: [
     'dist/',
     'node_modules/',
