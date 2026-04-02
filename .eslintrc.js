@@ -19,6 +19,7 @@ module.exports = {
     '@typescript-eslint/explicit-module-boundary-types': 'off',
     '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
     '@typescript-eslint/no-floating-promises': 'error',
+    '@typescript-eslint/unbound-method': ['error', { ignoreStatic: true }],
     'prettier/prettier': 'error',
     'no-console': ['warn', { allow: ['warn', 'error'] }],
   },
